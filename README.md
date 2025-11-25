@@ -47,7 +47,7 @@ bash
 python hr_analytics.py
 Use the interactive UI to explore data, train models, and predict attrition.
 
-👥** Target Users**
+👥 **Target Users**
 
 HR Managers needing quick attrition insights
 
@@ -65,7 +65,7 @@ Error handling for missing data or invalid inputs
 
 Tested with HR professionals (high satisfaction scores)
 
-🔮** Future Enhancements**
+🔮 **Future Enhancements**
 
 Feature importance visualization
 
