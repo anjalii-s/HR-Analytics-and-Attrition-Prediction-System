@@ -4,7 +4,7 @@
 
 This project delivers an interactive HR Analytics dashboard built with Python and Jupyter widgets. It enables data exploration, machine learning model training, and employee attrition prediction. The system is designed with Human-Computer Interaction (HCI) principles to make advanced analytics accessible to both technical and non-technical HR professionals.
 
-** Features**
+**Features**
 
 Data Exploration Tab
 
