@@ -1,0 +1,936 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyNGpU/M5nT+OjepdobMvJMm",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/anjalii-s/HR-Analytics-and-Attrition-Prediction-System/blob/main/Notebook%202%20with%20ngrok\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 33,
+      "metadata": {
+        "id": "B80e81fr9On5"
+      },
+      "outputs": [],
+      "source": [
+        "import pandas, numpy, matplotlib, seaborn, plotly, sklearn, joblib\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Comprehensive data processing"
+      ],
+      "metadata": {
+        "id": "ZqaNAMvC-jq3"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import pandas as pd\n",
+        "import numpy as np\n",
+        "import matplotlib.pyplot as plt\n",
+        "import seaborn as sns\n",
+        "import plotly.express as px\n",
+        "import plotly.graph_objects as go\n",
+        "from sklearn.ensemble import RandomForestClassifier\n",
+        "from sklearn.model_selection import train_test_split, cross_val_score\n",
+        "from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, accuracy_score\n",
+        "from sklearn.preprocessing import LabelEncoder\n",
+        "import warnings\n",
+        "warnings.filterwarnings('ignore')\n",
+        "\n",
+        "# Load data\n",
+        "df = pd.read_csv('/content/HR_IBM_dataset.csv')\n",
+        "print(\"✅ Data loaded successfully!\")\n",
+        "print(f\"Dataset shape: {df.shape}\")\n",
+        "print(f\"Attrition rate: {(df['Attrition'] == 'Yes').mean():.2%}\")\n",
+        "\n",
+        "def enhanced_feature_engineering(df):\n",
+        "    \"\"\"Create advanced features for better prediction\"\"\"\n",
+        "    df_enhanced = df.copy()\n",
+        "\n",
+        "    # Target variable encoding\n",
+        "    df_enhanced['Attrition'] = (df_enhanced['Attrition'] == 'Yes').astype(int)\n",
+        "\n",
+        "    # Remove constant columns\n",
+        "    constant_cols = ['EmployeeCount', 'Over18', 'StandardHours', 'EmployeeNumber']\n",
+        "    df_enhanced = df_enhanced.drop(columns=constant_cols, errors='ignore')\n",
+        "\n",
+        "    # Encode categorical variables\n",
+        "    categorical_cols = ['BusinessTravel', 'Department', 'EducationField',\n",
+        "                       'Gender', 'JobRole', 'MaritalStatus', 'OverTime']\n",
+        "\n",
+        "    for col in categorical_cols:\n",
+        "        le = LabelEncoder()\n",
+        "        df_enhanced[col] = le.fit_transform(df_enhanced[col].astype(str))\n",
+        "\n",
+        "    # Create advanced features\n",
+        "    df_enhanced['IncomePerYear'] = df_enhanced['MonthlyIncome'] / (df_enhanced['TotalWorkingYears'] + 1)\n",
+        "    df_enhanced['PromotionDelay'] = df_enhanced['YearsSinceLastPromotion'] / (df_enhanced['YearsAtCompany'] + 1)\n",
+        "    df_enhanced['RoleStability'] = df_enhanced['YearsInCurrentRole'] / (df_enhanced['YearsAtCompany'] + 1)\n",
+        "    df_enhanced['IsOverworked'] = ((df_enhanced['OverTime'] == 1) & (df_enhanced['WorkLifeBalance'] <= 2)).astype(int)\n",
+        "    df_enhanced['OverallSatisfaction'] = (df_enhanced['EnvironmentSatisfaction'] +\n",
+        "                                        df_enhanced['JobSatisfaction'] +\n",
+        "                                        df_enhanced['RelationshipSatisfaction']) / 3\n",
+        "\n",
+        "    return df_enhanced\n",
+        "\n",
+        "# Process data\n",
+        "df_processed = enhanced_feature_engineering(df)\n",
+        "print(\"✅ Feature engineering completed!\")\n",
+        "print(f\"Processed data shape: {df_processed.shape}\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "Yt5TFkPb-Huk",
+        "outputId": "6763e1d9-a1a1-49d8-a5eb-e250fb07dfdd"
+      },
+      "execution_count": 34,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "✅ Data loaded successfully!\n",
+            "Dataset shape: (1470, 35)\n",
+            "Attrition rate: 16.12%\n",
+            "✅ Feature engineering completed!\n",
+            "Processed data shape: (1470, 36)\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Dataset has 1470 employee records(rows) and 35 features(columns) before any transformations.Attrition rate shows 16.12% which is the proportion of rows where the Attrition column equals \"Yes\". This is target variable for predictive modeling.\n",
+        "\n",
+        "After feature engineering ,dataset has 36 features. The increase from 35 to 36 columns comes from newly created variables such as IncomePerYear, PromotionDelay, RoleStability, IsOverworked, and OverallSatisfaction.These engineered features are designed to capture more nuanced employee patterns and improve the performance of machine learning models predicting attrition."
+      ],
+      "metadata": {
+        "id": "blDSLpUv-vge"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Advanced modeling"
+      ],
+      "metadata": {
+        "id": "jr4DU_lC_lOl"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def create_advanced_features(df):\n",
+        "    \"\"\"Create more sophisticated features\"\"\"\n",
+        "    df_advanced = df.copy()\n",
+        "\n",
+        "    # Target encoding\n",
+        "    df_advanced['Attrition'] = (df_advanced['Attrition'] == 'Yes').astype(int)\n",
+        "\n",
+        "    # Remove low-variance columns\n",
+        "    constant_cols = ['EmployeeCount', 'Over18', 'StandardHours', 'EmployeeNumber']\n",
+        "    df_advanced = df_advanced.drop(columns=constant_cols, errors='ignore')\n",
+        "\n",
+        "    # Advanced feature engineering\n",
+        "    df_advanced['SalaryVsPeers'] = df_advanced['MonthlyIncome'] / df_advanced.groupby('JobRole')['MonthlyIncome'].transform('mean')\n",
+        "    df_advanced['TenureRatio'] = df_advanced['YearsAtCompany'] / (df_advanced['Age'] - 18)  # Career progression speed\n",
+        "    df_advanced['SatisfactionImbalance'] = abs(df_advanced['JobSatisfaction'] - df_advanced['EnvironmentSatisfaction'])\n",
+        "    df_advanced['PromotionUrgency'] = df_advanced['YearsSinceLastPromotion'] / (df_advanced['Age'] - 18)\n",
+        "    df_advanced['WorkPressure'] = ((df_advanced['OverTime'] == 'Yes').astype(int) * 0.5 +\n",
+        "                                 (df_advanced['WorkLifeBalance'] <= 2).astype(int) * 0.5)\n",
+        "\n",
+        "    # Encode categorical with target mean encoding (more informative)\n",
+        "    categorical_cols = ['BusinessTravel', 'Department', 'EducationField', 'JobRole', 'MaritalStatus']\n",
+        "\n",
+        "    for col in categorical_cols:\n",
+        "        # Target mean encoding\n",
+        "        encoding = df_advanced.groupby(col)['Attrition'].mean()\n",
+        "        df_advanced[f'{col}_Encoded'] = df_advanced[col].map(encoding)\n",
+        "\n",
+        "    # Regular label encoding for remaining\n",
+        "    from sklearn.preprocessing import LabelEncoder\n",
+        "    le = LabelEncoder()\n",
+        "    df_advanced['Gender'] = le.fit_transform(df_advanced['Gender'])\n",
+        "    df_advanced['OverTime'] = le.fit_transform(df_advanced['OverTime'])\n",
+        "\n",
+        "    return df_advanced\n",
+        "\n",
+        "# Apply advanced feature engineering\n",
+        "print(\"🔄 Creating advanced features...\")\n",
+        "df_advanced = create_advanced_features(df)\n",
+        "print(f\"Advanced features created: {df_advanced.shape[1]} total features\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "RG02BTOy_mTc",
+        "outputId": "8da14330-3f59-4ff2-d896-0e68fffcc1ba"
+      },
+      "execution_count": 35,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "🔄 Creating advanced features...\n",
+            "Advanced features created: 41 total features\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Advanced feature engineering expanded the dataset to 41 features, adding richer signals such as salary comparison with peers, tenure ratio, satisfaction imbalance, promotion urgency, and work pressure. Target mean encoding was also applied to categorical variables, making the dataset more informative for attrition prediction"
+      ],
+      "metadata": {
+        "id": "47keEz70_t7k"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Feature selection and engineering"
+      ],
+      "metadata": {
+        "id": "j4j-7ACn_2W7"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from sklearn.feature_selection import SelectKBest, f_classif\n",
+        "from sklearn.preprocessing import StandardScaler\n",
+        "\n",
+        "def select_best_features(df_advanced, k=20):\n",
+        "    \"\"\"Select most predictive features\"\"\"\n",
+        "\n",
+        "    # Separate features and target\n",
+        "    feature_columns = [col for col in df_advanced.columns if col != 'Attrition' and df_advanced[col].dtype in ['int64', 'float64']]\n",
+        "    X = df_advanced[feature_columns]\n",
+        "    y = df_advanced['Attrition']\n",
+        "\n",
+        "    # Handle missing values\n",
+        "    X = X.fillna(X.mean())\n",
+        "\n",
+        "    # Feature selection\n",
+        "    selector = SelectKBest(score_func=f_classif, k=min(k, len(feature_columns)))\n",
+        "    X_selected = selector.fit_transform(X, y)\n",
+        "\n",
+        "    # Get selected feature names\n",
+        "    selected_features = X.columns[selector.get_support()].tolist()\n",
+        "    feature_scores = selector.scores_[selector.get_support()]\n",
+        "\n",
+        "    # Create feature importance dataframe\n",
+        "    feature_importance = pd.DataFrame({\n",
+        "        'feature': selected_features,\n",
+        "        'score': feature_scores\n",
+        "    }).sort_values('score', ascending=False)\n",
+        "\n",
+        "    print(\"🎯 Top Selected Features:\")\n",
+        "    print(feature_importance.head(10))\n",
+        "\n",
+        "    return X_selected, selected_features, y\n",
+        "\n",
+        "# Select best features\n",
+        "print(\"🔍 Performing feature selection...\")\n",
+        "X_selected, selected_features, y = select_best_features(df_advanced, k=15)\n",
+        "print(f\"Selected {len(selected_features)} most predictive features\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "7bUQo0kJ_3yj",
+        "outputId": "40f17869-7003-4d37-f0d3-5aaaa44b2e4e"
+      },
+      "execution_count": 36,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "🔍 Performing feature selection...\n",
+            "🎯 Top Selected Features:\n",
+            "                  feature      score\n",
+            "4                OverTime  94.656457\n",
+            "13        JobRole_Encoded  91.434023\n",
+            "10           WorkPressure  70.314442\n",
+            "14  MaritalStatus_Encoded  47.595553\n",
+            "6       TotalWorkingYears  44.252491\n",
+            "2                JobLevel  43.215344\n",
+            "8      YearsInCurrentRole  38.838303\n",
+            "3           MonthlyIncome  38.488819\n",
+            "0                     Age  38.175887\n",
+            "9    YearsWithCurrManager  36.712311\n",
+            "Selected 15 most predictive features\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Feature selection identified the 15 most predictive variables for employee attrition. The top signals include OverTime, JobRole_Encoded, and WorkPressure, followed by marital status, tenure, job level, income, age, and manager relationship. These features capture both work conditions (like overtime and pressure) and career progression factors (such as tenure and promotions), making them highly informative for building accurate attrition prediction models."
+      ],
+      "metadata": {
+        "id": "G0M7AZCF_86M"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Advanced ensemble model"
+      ],
+      "metadata": {
+        "id": "kJdi56HjAA6j"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier\n",
+        "from sklearn.linear_model import LogisticRegression\n",
+        "from sklearn.svm import SVC\n",
+        "from sklearn.model_selection import cross_val_predict, StratifiedKFold\n",
+        "import numpy as np\n",
+        "\n",
+        "def create_advanced_ensemble(X, y, selected_features):\n",
+        "    \"\"\"Create ensemble model with advanced techniques\"\"\"\n",
+        "\n",
+        "    # Scale features for certain models\n",
+        "    scaler = StandardScaler()\n",
+        "    X_scaled = scaler.fit_transform(X)\n",
+        "\n",
+        "    # Define models with optimized hyperparameters\n",
+        "    models = {\n",
+        "        'RandomForest': RandomForestClassifier(\n",
+        "            n_estimators=200,\n",
+        "            max_depth=12,\n",
+        "            min_samples_split=8,\n",
+        "            min_samples_leaf=4,\n",
+        "            class_weight='balanced_subsample',\n",
+        "            random_state=42\n",
+        "        ),\n",
+        "        'GradientBoosting': GradientBoostingClassifier(\n",
+        "            n_estimators=150,\n",
+        "            max_depth=6,\n",
+        "            learning_rate=0.1,\n",
+        "            subsample=0.8,\n",
+        "            random_state=42\n",
+        "        ),\n",
+        "        'LogisticRegression': LogisticRegression(\n",
+        "            C=0.1,\n",
+        "            class_weight='balanced',\n",
+        "            random_state=42,\n",
+        "            max_iter=1000\n",
+        "        )\n",
+        "    }\n",
+        "\n",
+        "    # Use stratified k-fold for validation\n",
+        "    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)\n",
+        "\n",
+        "    # Store results\n",
+        "    results = {}\n",
+        "    ensemble_predictions = []\n",
+        "\n",
+        "    print(\"🚀 Training Ensemble Models...\")\n",
+        "    print(\"=\" * 50)\n",
+        "\n",
+        "    for name, model in models.items():\n",
+        "        # Get cross-validated predictions\n",
+        "        y_pred_proba = cross_val_predict(model, X_scaled, y, cv=cv, method='predict_proba')[:, 1]\n",
+        "        y_pred = (y_pred_proba > 0.5).astype(int)\n",
+        "\n",
+        "        # Calculate metrics\n",
+        "        accuracy = accuracy_score(y, y_pred)\n",
+        "        auc_score = roc_auc_score(y, y_pred_proba)\n",
+        "\n",
+        "        results[name] = {\n",
+        "            'accuracy': accuracy,\n",
+        "            'auc': auc_score,\n",
+        "            'predictions': y_pred_proba\n",
+        "        }\n",
+        "\n",
+        "        print(f\"{name:20} | Accuracy: {accuracy:.3f} | AUC: {auc_score:.3f}\")\n",
+        "        ensemble_predictions.append(y_pred_proba)\n",
+        "\n",
+        "    # Create weighted ensemble\n",
+        "    ensemble_weights = [results[model]['auc'] for model in models.keys()]\n",
+        "    ensemble_weights = [w/sum(ensemble_weights) for w in ensemble_weights]  # Normalize\n",
+        "\n",
+        "    ensemble_pred_proba = np.zeros_like(ensemble_predictions[0])\n",
+        "    for i, preds in enumerate(ensemble_predictions):\n",
+        "        ensemble_pred_proba += preds * ensemble_weights[i]\n",
+        "\n",
+        "    ensemble_pred = (ensemble_pred_proba > 0.5).astype(int)\n",
+        "\n",
+        "    # Ensemble performance\n",
+        "    ensemble_accuracy = accuracy_score(y, ensemble_pred)\n",
+        "    ensemble_auc = roc_auc_score(y, ensemble_pred_proba)\n",
+        "\n",
+        "    print(\"\\n🎯 ENSEMBLE PERFORMANCE:\")\n",
+        "    print(f\"Accuracy: {ensemble_accuracy:.3f}\")\n",
+        "    print(f\"AUC Score: {ensemble_auc:.3f}\")\n",
+        "    print(f\"Weights: {dict(zip(models.keys(), ensemble_weights))}\")\n",
+        "\n",
+        "    # Final model training on full data\n",
+        "    final_model = RandomForestClassifier(\n",
+        "        n_estimators=200,\n",
+        "        max_depth=12,\n",
+        "        min_samples_split=8,\n",
+        "        min_samples_leaf=4,\n",
+        "        class_weight='balanced_subsample',\n",
+        "        random_state=42\n",
+        "    )\n",
+        "\n",
+        "    final_model.fit(X_scaled, y)\n",
+        "\n",
+        "    return final_model, scaler, results, ensemble_auc\n",
+        "\n",
+        "# Train advanced ensemble\n",
+        "print(\"\\n🔥 Training Advanced Ensemble Model...\")\n",
+        "final_model, scaler, model_results, ensemble_auc = create_advanced_ensemble(\n",
+        "    X_selected, y, selected_features\n",
+        ")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "sICl6KV0AAbb",
+        "outputId": "d26f58a5-3da5-4832-e831-c78262d5528c"
+      },
+      "execution_count": 37,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "🔥 Training Advanced Ensemble Model...\n",
+            "🚀 Training Ensemble Models...\n",
+            "==================================================\n",
+            "RandomForest         | Accuracy: 0.854 | AUC: 0.798\n",
+            "GradientBoosting     | Accuracy: 0.859 | AUC: 0.787\n",
+            "LogisticRegression   | Accuracy: 0.739 | AUC: 0.796\n",
+            "\n",
+            "🎯 ENSEMBLE PERFORMANCE:\n",
+            "Accuracy: 0.862\n",
+            "AUC Score: 0.807\n",
+            "Weights: {'RandomForest': np.float64(0.33524259776837356), 'GradientBoosting': np.float64(0.3305451175088554), 'LogisticRegression': np.float64(0.3342122847227711)}\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "We tried to combine random forest,gradient boosting and logistic regression models using stratified cross-validation. Individually, random forest and gradient boosting achieved around 85% while logistic regression was lower at 74% but still contributed useful probability signals. By weighting models based on their AUC,final ensemble has 86.2% accuracy abd 0.807 AUC, outperforming any single model. This shows that blending diverse algorithms captures complementary patterns in attrition prediction.So we will have strong prediction."
+      ],
+      "metadata": {
+        "id": "WvzQsSKDAqJN"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Hyperparameter Tuning for Maximum Performance"
+      ],
+      "metadata": {
+        "id": "bjSXjgGkBfGS"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from sklearn.model_selection import GridSearchCV\n",
+        "\n",
+        "def optimize_model(X, y):\n",
+        "    \"\"\"Fine-tune the best model\"\"\"\n",
+        "\n",
+        "    print(\"🎛️ Optimizing Model Hyperparameters...\")\n",
+        "\n",
+        "    # Parameter grid for Random Forest\n",
+        "    param_grid = {\n",
+        "        'n_estimators': [100, 200, 300],\n",
+        "        'max_depth': [8, 12, 15, None],\n",
+        "        'min_samples_split': [5, 10, 15],\n",
+        "        'min_samples_leaf': [2, 4, 6],\n",
+        "        'class_weight': ['balanced', 'balanced_subsample']\n",
+        "    }\n",
+        "\n",
+        "    rf = RandomForestClassifier(random_state=42)\n",
+        "\n",
+        "    # Use smaller grid search for efficiency\n",
+        "    grid_search = GridSearchCV(\n",
+        "        rf, param_grid, cv=3, scoring='roc_auc',\n",
+        "        n_jobs=-1, verbose=1\n",
+        "    )\n",
+        "\n",
+        "    grid_search.fit(X, y)\n",
+        "\n",
+        "    print(f\"🎯 Best parameters: {grid_search.best_params_}\")\n",
+        "    print(f\"🏆 Best CV score: {grid_search.best_score_:.3f}\")\n",
+        "\n",
+        "    return grid_search.best_estimator_\n",
+        "\n"
+      ],
+      "metadata": {
+        "id": "SOI-ZS-xBhhK"
+      },
+      "execution_count": 38,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Business-Oriented Model Evaluation"
+      ],
+      "metadata": {
+        "id": "AszVqRsWBk8T"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def business_focused_evaluation(model, X, y, selected_features, threshold=0.3):\n",
+        "    \"\"\"Evaluate model from business perspective\"\"\"\n",
+        "\n",
+        "    from sklearn.model_selection import cross_val_predict\n",
+        "    import numpy as np\n",
+        "\n",
+        "    # Get probabilistic predictions\n",
+        "    y_pred_proba = cross_val_predict(model, X, y, cv=5, method='predict_proba')[:, 1]\n",
+        "\n",
+        "    # Use business-oriented threshold (lower to catch more at-risk employees)\n",
+        "    y_pred_business = (y_pred_proba > threshold).astype(int)\n",
+        "\n",
+        "    print(\"💼 BUSINESS-FOCUSED EVALUATION\")\n",
+        "    print(\"=\" * 50)\n",
+        "\n",
+        "    # Standard metrics\n",
+        "    accuracy = accuracy_score(y, y_pred_business)\n",
+        "    auc_score = roc_auc_score(y, y_pred_proba)\n",
+        "\n",
+        "    print(f\"Accuracy (threshold={threshold}): {accuracy:.3f}\")\n",
+        "    print(f\"AUC Score: {auc_score:.3f}\")\n",
+        "\n",
+        "    # Business metrics\n",
+        "    n_high_risk = (y_pred_proba > threshold).sum()\n",
+        "    actual_leavers_identified = ((y_pred_proba > threshold) & (y == 1)).sum()\n",
+        "    total_leavers = y.sum()\n",
+        "\n",
+        "    print(f\"\\n📈 BUSINESS METRICS:\")\n",
+        "    print(f\"Employees flagged as high risk: {n_high_risk} ({n_high_risk/len(y):.1%})\")\n",
+        "    print(f\"Actual leavers identified: {actual_leavers_identified}/{total_leavers} ({actual_leavers_identified/total_leavers:.1%})\")\n",
+        "    print(f\"Precision (true high-risk): {actual_leavers_identified/n_high_risk:.1%}\")\n",
+        "\n",
+        "    # Cost-benefit analysis\n",
+        "    avg_salary = df['MonthlyIncome'].mean()\n",
+        "    cost_per_replacement = avg_salary * 12 * 1.5  # 150% of annual salary\n",
+        "    potential_savings = actual_leavers_identified * cost_per_replacement * 0.5  # Assume 50% can be retained\n",
+        "\n",
+        "    print(f\"\\n💰 FINANCIAL IMPACT:\")\n",
+        "    print(f\"Avg salary: ${avg_salary:,.0f}\")\n",
+        "    print(f\"Cost per replacement: ${cost_per_replacement:,.0f}\")\n",
+        "    print(f\"Potential annual savings: ${potential_savings:,.0f}\")\n",
+        "\n",
+        "    return y_pred_proba\n",
+        "\n",
+        "# Business evaluation\n",
+        "print(\"\\n💼 Running business-focused evaluation...\")\n",
+        "y_pred_proba = business_focused_evaluation(final_model, X_selected, y, selected_features, threshold=0.3)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "mp3T4DCnBkhz",
+        "outputId": "56a885af-aa40-4b68-ed98-5d69135dbb05"
+      },
+      "execution_count": 39,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "💼 Running business-focused evaluation...\n",
+            "💼 BUSINESS-FOCUSED EVALUATION\n",
+            "==================================================\n",
+            "Accuracy (threshold=0.3): 0.727\n",
+            "AUC Score: 0.799\n",
+            "\n",
+            "📈 BUSINESS METRICS:\n",
+            "Employees flagged as high risk: 505 (34.4%)\n",
+            "Actual leavers identified: 170/237 (71.7%)\n",
+            "Precision (true high-risk): 33.7%\n",
+            "\n",
+            "💰 FINANCIAL IMPACT:\n",
+            "Avg salary: $6,503\n",
+            "Cost per replacement: $117,053\n",
+            "Potential annual savings: $9,949,485\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Business-focused evaluation shows the model balances accuracy with practical impact.\n",
+        "\n",
+        " At a threshold of 0.3, it flagged 505 employees (34.4%) as high risk, correctly identifying 170 of 237 actual leavers (71.7%).\n",
+        "\n",
+        " Precision among flagged employees was 33.7%, with overall accuracy 72.7% and AUC 0.799.\n",
+        "\n",
+        "  Financial analysis estimates an average replacement cost of 117053 dollars per employee, leading to potential annual savings of nearly $9.95M if retention strategies succeed."
+      ],
+      "metadata": {
+        "id": "MO9jhJ0rBv_S"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Final Model with Best Practices"
+      ],
+      "metadata": {
+        "id": "NHWwpqCQCATx"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def create_final_production_model(df):\n",
+        "    \"\"\"Create final model with all best practices\"\"\"\n",
+        "\n",
+        "    # Advanced feature engineering\n",
+        "    df_final = create_advanced_features(df)\n",
+        "\n",
+        "    # Feature selection\n",
+        "    feature_columns = [col for col in df_final.columns if col != 'Attrition' and df_final[col].dtype in ['int64', 'float64']]\n",
+        "    X = df_final[feature_columns].fillna(df_final[feature_columns].mean())\n",
+        "    y = df_final['Attrition']\n",
+        "\n",
+        "    # Scale features\n",
+        "    from sklearn.preprocessing import StandardScaler\n",
+        "    scaler = StandardScaler()\n",
+        "    X_scaled = scaler.fit_transform(X)\n",
+        "\n",
+        "    # Final model with optimized parameters\n",
+        "    final_model = RandomForestClassifier(\n",
+        "        n_estimators=200,\n",
+        "        max_depth=12,\n",
+        "        min_samples_split=8,\n",
+        "        min_samples_leaf=4,\n",
+        "        class_weight='balanced_subsample',\n",
+        "        random_state=42\n",
+        "    )\n",
+        "\n",
+        "    # Train final model\n",
+        "    final_model.fit(X_scaled, y)\n",
+        "\n",
+        "    # Cross-validated performance\n",
+        "    from sklearn.model_selection import cross_val_score\n",
+        "    cv_scores = cross_val_score(final_model, X_scaled, y, cv=5, scoring='roc_auc')\n",
+        "\n",
+        "    print(\"🎉 FINAL MODEL PERFORMANCE\")\n",
+        "    print(\"=\" * 40)\n",
+        "    print(f\"Cross-validated AUC: {cv_scores.mean():.3f} (+/- {cv_scores.std() * 2:.3f})\")\n",
+        "    print(f\"Features used: {len(feature_columns)}\")\n",
+        "\n",
+        "    # Feature importance\n",
+        "    importance_df = pd.DataFrame({\n",
+        "        'feature': feature_columns,\n",
+        "        'importance': final_model.feature_importances_\n",
+        "    }).sort_values('importance', ascending=False)\n",
+        "\n",
+        "    print(\"\\n🔝 TOP 10 FEATURES IN FINAL MODEL:\")\n",
+        "    print(importance_df.head(10).to_string(index=False))\n",
+        "\n",
+        "    return final_model, scaler, feature_columns, cv_scores.mean()\n",
+        "\n",
+        "# Create final production-ready model\n",
+        "print(\"\\n🚀 Creating Final Production Model...\")\n",
+        "production_model, production_scaler, production_features, final_auc = create_final_production_model(df)\n",
+        "\n",
+        "print(f\"\\n✅ FINAL RESULTS SUMMARY:\")\n",
+        "print(f\"Baseline AUC: 0.762\")\n",
+        "print(f\"Final Model AUC: {final_auc:.3f}\")\n",
+        "print(f\"Improvement: {((final_auc - 0.762) / 0.762 * 100):.1f}%\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "sRzTgMiQCBjd",
+        "outputId": "c8706ad0-5d77-42ba-f6a5-97be394b7e64"
+      },
+      "execution_count": 40,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "🚀 Creating Final Production Model...\n",
+            "🎉 FINAL MODEL PERFORMANCE\n",
+            "========================================\n",
+            "Cross-validated AUC: 0.810 (+/- 0.051)\n",
+            "Features used: 35\n",
+            "\n",
+            "🔝 TOP 10 FEATURES IN FINAL MODEL:\n",
+            "          feature  importance\n",
+            "    MonthlyIncome    0.059975\n",
+            "  JobRole_Encoded    0.057727\n",
+            "         OverTime    0.056925\n",
+            "              Age    0.052417\n",
+            "    SalaryVsPeers    0.045133\n",
+            "   YearsAtCompany    0.043126\n",
+            "TotalWorkingYears    0.040740\n",
+            "     WorkPressure    0.040623\n",
+            "      TenureRatio    0.040458\n",
+            "      MonthlyRate    0.039661\n",
+            "\n",
+            "✅ FINAL RESULTS SUMMARY:\n",
+            "Baseline AUC: 0.762\n",
+            "Final Model AUC: 0.810\n",
+            "Improvement: 6.3%\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        " Final production model created with advanced\n",
+        "feature engineering and optimized RandomForest.\n",
+        "\n",
+        " Cross-validated AUC: 0.810 (+/- 0.051) using 35 features.\n",
+        "\n",
+        "Top signals include MonthlyIncome, JobRole_Encoded, OverTime, Age, SalaryVsPeers, and YearsAtCompany.\n",
+        "   \n",
+        "  Final Results: Baseline AUC 0.762 → 0.810, showing a 6.3% improvement in predictive performance."
+      ],
+      "metadata": {
+        "id": "TLj-uY5_CQYh"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Streamlit + ngrok/local tunnel Setup (Colab) for deployment"
+      ],
+      "metadata": {
+        "id": "0YQQKzXHCduR"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!curl https://loca.lt/mytunnelpassword"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "TWua3kyyK_mb",
+        "outputId": "adff116b-6a5d-4fcb-81b7-df5a342782de"
+      },
+      "execution_count": 49,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "34.46.210.187"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Install Streamlit and pyngrok (more reliable than localtunnel)\n",
+        "!pip install streamlit pyngrok --quiet\n"
+      ],
+      "metadata": {
+        "id": "D7kfo-JSD2m7"
+      },
+      "execution_count": 51,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "with open(\"app.py\", \"w\") as f:\n",
+        "    f.write('''# app.py - IBM HR Analytics Dashboard\n",
+        "import streamlit as st\n",
+        "import pandas as pd\n",
+        "import numpy as np\n",
+        "import plotly.express as px\n",
+        "import plotly.graph_objects as go\n",
+        "\n",
+        "# Page configuration\n",
+        "st.set_page_config(\n",
+        "    page_title=\"IBM HR Analytics\",\n",
+        "    page_icon=\"🏢\",\n",
+        "    layout=\"wide\"\n",
+        ")\n",
+        "\n",
+        "# Custom CSS\n",
+        "st.markdown(\"\"\"\n",
+        "<style>\n",
+        ".main-header {\n",
+        "    font-size: 2.5rem;\n",
+        "    color: #1f77b4;\n",
+        "    text-align: center;\n",
+        "    margin-bottom: 2rem;\n",
+        "}\n",
+        ".metric-card {\n",
+        "    background-color: #f0f2f6;\n",
+        "    padding: 1rem;\n",
+        "    border-radius: 10px;\n",
+        "    margin: 0.5rem;\n",
+        "}\n",
+        ".risk-high { color: #DC143C; font-weight: bold; }\n",
+        ".risk-medium { color: #FF8C00; font-weight: bold; }\n",
+        ".risk-low { color: #2E8B57; font-weight: bold; }\n",
+        "</style>\n",
+        "\"\"\", unsafe_allow_html=True)\n",
+        "\n",
+        "@st.cache_data\n",
+        "@st.cache_data\n",
+        "def load_sample_data():\n",
+        "    \"\"\"Load IBM HR dataset instead of synthetic data\"\"\"\n",
+        "    df = pd.read_csv(\"/content/HR_IBM_dataset.csv\")  # adjust path if needed\n",
+        "    return df\n",
+        "\n",
+        "def create_dashboard_overview(filtered_df):\n",
+        "    \"\"\"Main dashboard overview\"\"\"\n",
+        "    st.markdown('<h1 class=\"main-header\">🏢 IBM HR Analytics Dashboard</h1>', unsafe_allow_html=True)\n",
+        "\n",
+        "    # Metrics\n",
+        "    col1, col2, col3, col4 = st.columns(4)\n",
+        "    with col1: st.metric(\"Total Employees\", f\"{len(filtered_df):,}\")\n",
+        "    with col2: st.metric(\"Attrition Rate\", f\"{(filtered_df['Attrition']=='Yes').mean():.1%}\")\n",
+        "    with col3: st.metric(\"Avg Monthly Income\", f\"${filtered_df['MonthlyIncome'].mean():,.0f}\")\n",
+        "    with col4: st.metric(\"Avg Job Satisfaction\", f\"{filtered_df['JobSatisfaction'].mean():.1f}/4\")\n",
+        "\n",
+        "    st.markdown(\"---\")\n",
+        "\n",
+        "    # Charts\n",
+        "    col1, col2 = st.columns(2)\n",
+        "    with col1:\n",
+        "        st.subheader(\"📊 Attrition by Department\")\n",
+        "        dept_data = filtered_df.groupby('Department')['Attrition'].apply(lambda x: (x=='Yes').mean()).reset_index()\n",
+        "        fig = px.bar(dept_data, x='Department', y='Attrition', title='Department-wise Attrition Rates')\n",
+        "        st.plotly_chart(fig, use_container_width=True)\n",
+        "    with col2:\n",
+        "        st.subheader(\"💰 Salary Distribution\")\n",
+        "        fig = px.box(filtered_df, x='Attrition', y='MonthlyIncome', color='Attrition', title='Monthly Income by Attrition Status')\n",
+        "        st.plotly_chart(fig, use_container_width=True)\n",
+        "\n",
+        "def create_employee_explorer(filtered_df):\n",
+        "    \"\"\"Interactive employee explorer\"\"\"\n",
+        "    st.header(\"🔍 Employee Data Explorer\")\n",
+        "    search_term = st.text_input(\"Search employees\", placeholder=\"Enter department, job role, etc.\")\n",
+        "    sort_by = st.selectbox(\"Sort by\", ['MonthlyIncome','Age','YearsAtCompany','JobSatisfaction'])\n",
+        "    sort_order = st.radio(\"Order\", [\"Descending\",\"Ascending\"], horizontal=True)\n",
+        "    ascending = (sort_order==\"Ascending\")\n",
+        "    if search_term:\n",
+        "        mask = filtered_df.apply(lambda row: row.astype(str).str.contains(search_term, case=False).any(), axis=1)\n",
+        "        display_df = filtered_df[mask].copy()\n",
+        "    else:\n",
+        "        display_df = filtered_df.copy()\n",
+        "    display_df = display_df.sort_values(sort_by, ascending=ascending)\n",
+        "    st.dataframe(display_df[['Age','Department','JobRole','MonthlyIncome','YearsAtCompany','JobSatisfaction','Attrition']], use_container_width=True, height=400)\n",
+        "\n",
+        "def main():\n",
+        "    df = load_sample_data()\n",
+        "    page = st.sidebar.radio(\"📊 Navigation\", [\"Dashboard Overview\",\"Employee Explorer\"])\n",
+        "    if page==\"Dashboard Overview\":\n",
+        "        create_dashboard_overview(df)\n",
+        "    elif page==\"Employee Explorer\":\n",
+        "        create_employee_explorer(df)\n",
+        "    st.markdown(\"---\")\n",
+        "    st.caption(\"**IBM HR Analytics Dashboard** | Prototype | Built with Streamlit\")\n",
+        "\n",
+        "if __name__ == \"__main__\":\n",
+        "    main()\n",
+        "''')\n"
+      ],
+      "metadata": {
+        "id": "JYchx_zSC4G2"
+      },
+      "execution_count": 52,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from pyngrok import ngrok, conf\n",
+        "import subprocess, time\n",
+        "\n",
+        "# 🔑 Use your real token here\n",
+        "conf.get_default().auth_token = \"add your ngrok token here\"\n",
+        "\n",
+        "# 🚀 Start Streamlit\n",
+        "process = subprocess.Popen([\"streamlit\", \"run\", \"app.py\", \"--server.port\", \"8501\"])\n",
+        "\n",
+        "time.sleep(5)  # wait for Streamlit to boot\n",
+        "\n",
+        "# 🌐 Connect with ngrok\n",
+        "public_url = ngrok.connect(8501)\n",
+        "print(\"🌐 Public URL:\", public_url)\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "kgI1-t6NHcWv",
+        "outputId": "20f92e4b-503f-44bd-cf76-dc8ea216c300"
+      },
+      "execution_count": 53,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "🌐 Public URL: NgrokTunnel: \"https://diploblastic-sariah-unarticled.ngrok-free.dev\" -> \"http://localhost:8501\"\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
