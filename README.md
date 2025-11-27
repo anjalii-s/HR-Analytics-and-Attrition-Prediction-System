@@ -75,6 +75,25 @@ Advanced model comparison
 
 HRIS integration for enterprise use
 
+## 🌐 Streamlit + ngrok Version (Colab)
+
+In addition to the Jupyter widgets prototype, I have also created a **Streamlit notebook version** that demonstrates deployment using **ngrok tunneling**.  
+
+This version includes:
+- A modern Streamlit UI with sidebar navigation (Dashboard Overview & Employee Explorer)
+- Interactive charts built with Plotly
+- Search and sorting functionality for employee data
+- Secure public access via ngrok (Colab → web browser)
+
+### How to Run (ngrok version)
+1. Place your dataset file as `HR_IBM_dataset.csv` in the project folder.  
+2. Open the notebook `HR_Analytics_Streamlit_ngrok.ipynb`.  
+3. Run all cells.  
+4. Copy the generated ngrok public URL and open it in your browser to interact with the dashboard.  
+
+⚠️ **Note:** For security reasons, the ngrok authtoken is not included in the notebook. Please replace the placeholder `"YOUR_NGROK_TOKEN"` with your own token from the [ngrok dashboard](https://dashboard.ngrok.com/get-started/your-authtoken).
+
+
 📜 **License**
 
 This project is licensed under the MIT License – free to use, modify, and distribute.
